@@ -1,6 +1,9 @@
 --Delete Database before running
 
 CREATE DATABASE alloy_info;
+CREATE USER admin WITH PASSWORD 'pass';
+GRANT ALL PRIVILEGES ON DATABASE alloy_info TO admin;
+
 USE alloy_info;
 
 CREATE TABLE alloy (
