@@ -14,6 +14,7 @@ CREATE TABLE query (
   query_id SERIAL PRIMARY KEY,
   alloy_id INT,
   request_type VARCHAR(255),
+  repeated BOOLEAN,
   FOREIGN KEY (alloy_id) REFERENCES alloy(alloy_id)
 );
 
@@ -27,6 +28,7 @@ CREATE TABLE stress_strain (
 
 CREATE TABLE properties (
   alloy_id INT,
+  common_name VARCHAR(255),
   density VARCHAR(255),
   elastic_modulus VARCHAR(255),
   hardness VARCHAR(255),
