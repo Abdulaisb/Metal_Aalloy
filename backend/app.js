@@ -4,34 +4,35 @@ const port = 3000;
 const { Pool } = require('pg');
 const dotenv = require("dotenv");
 const OpenAI = require("openai");
+const cors = require('cors');
+
 
 //environment variables
 dotenv.config();
-//psql
-const pool = new Pool({
-    user: 'admin',
-    host: 'localhost',
-    database: 'alloy_info',
-    password: 'pass',
-    port: 5432, // Default PostgreSQL port
-});
 
-//AI setup
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
-
+// Middleware to parse JSON bodies
+app.use(express.json());
+app.use(cors());
 // Start the server, listens from any ip
 app.listen(port, '0.0.0.0', () => {
   console.log(`Server is running on ${port}`);
 });
-
-// Middleware to parse JSON bodies
-app.use(express.json());
+//AI setup
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+});
+//psql
+const pool = new Pool({
+  user: 'admin',
+  host: 'localhost',
+  database: 'alloy_info',
+  password: 'pass',
+  port: 5432, // Default PostgreSQL port
+});
 //////////////////////////////////////////////////////
 // Test Route
 app.get('/', (req, res) => {
-  res.send('Hello World!');
+  res.json('Your response data');
 });
 // Test AI
 app.get('/testGPTConnection', async (req, res) => {
@@ -56,7 +57,7 @@ app.get('/testDB', async (req, res) => {
 app.post('/userRequest', async (req, res) => {
   const {alloyName, type} = req.body;
   //check if valid alloy
-  const good = good_alloy(alloyName) === 'true';
+  const good = await good_alloy(alloyName);
   if (!good) {res.json("bad"); return;}
   //if alloy exists get id
   let alloyID = await alloy_id_from_name(alloyName);
@@ -66,11 +67,12 @@ app.post('/userRequest', async (req, res) => {
     alloyID = await alloy_id_from_name(alloyName);
   }
   //See if this request for this alloy has been made
-  const rep = await db_repitition(alloyID,alloyName);
+  const rep = await db_repitition(alloyID,type);
   //track request
   track_query(alloyID,type,rep);
   //If not made, use gpt to populate database
   if (!rep) {
+    console.log('unique query');
     if (type === 'stress strain') {
       const info = await gpt_stress_strain(alloyName);
       //insert into database
@@ -104,6 +106,7 @@ app.post('/userRequest', async (req, res) => {
       strain: strainValues,
       stress: stressValues
     };
+    console.log(ret);
     res.json(ret);
   }
   else if (type === 'properties') {
@@ -182,7 +185,6 @@ async function gpt_properties (alloyName) {
     model: "gpt-4",
   });
   const properties = JSON.parse(result.choices[0].message.content);
-  console.log(properties);
   return properties;
 }
 //GPT to get alloy stress strain
@@ -209,7 +211,6 @@ async function gpt_stress_strain (alloyName) {
   if (tries === 10) {
     throw new Error('Max retries reached for GPT-4 stress-strain data.');
   }
-  console.log(responseContent);
   const [strainList, stressList] = responseContent.split('\n');
   const strainValues = strainList.replace(/[\[\]]/g, '').split(',').map(Number);
   const stressValues = stressList.replace(/[\[\]]/g, '').split(',').map(Number);
